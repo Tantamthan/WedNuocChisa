@@ -1,0 +1,46 @@
+﻿@{
+    ViewBag.Title = "Bếp & Bar";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="space-y-4 h-full flex flex-col">
+    <div class="flex justify-between items-center">
+        <h3 class="font-bold text-xl text-gray-800 flex items-center gap-2">
+            <i data-lucide="chef-hat" class="w-6 h-6 text-orange-600"></i>
+            Màn Hình Bếp / Bar
+        </h3>
+        <span class="text-xs text-gray-400 animate-pulse">● Cập nhật tự động</span>
+    </div>
+
+    <div id="kitchen-container" class="flex-1 overflow-y-auto min-h-[500px]">
+        Loading...
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        function loadOrders() {
+            // Gọi Action GetPendingOrders để lấy HTML
+            $('#kitchen-container').load('@Url.Action("GetPendingOrders", "Kitchen")', function() {
+                // Sau khi load xong thì kích hoạt lại icon
+                if(window.lucide) lucide.createIcons();
+            });
+        }
+
+        function completeOrder(id) {
+            if(!confirm("Xác nhận đã làm xong đơn này?")) return;
+
+            $.post('@Url.Action("CompleteOrder", "Kitchen")/' + id, function(res) {
+                if(res.success) {
+                    loadOrders(); // Tải lại ngay lập tức
+                }
+            });
+        }
+
+        // Tự động tải lại mỗi 5 giây (Polling)
+        setInterval(loadOrders, 5000);
+
+        // Tải lần đầu tiên khi vào trang
+        loadOrders();
+    </script>
+}

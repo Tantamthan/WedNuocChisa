@@ -1,0 +1,216 @@
+﻿@model IEnumerable<HisaTeaPOS.Models.SanPham>
+@{
+    ViewBag.Title = "Quản lý Công Thức";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+    <div class="md:col-span-1 bg-white rounded-xl shadow-sm border p-4 flex flex-col h-[85vh]">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+            <h3 class="font-bold text-gray-800">Danh sách món</h3>
+            <button onclick="openProductModal(0)" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 shadow-sm transition-colors">
+                <i data-lucide="plus" class="w-4 h-4"></i> Món mới
+            </button>
+        </div>
+
+        <div class="space-y-2 overflow-y-auto flex-1 pr-1">
+            @foreach (var p in Model)
+            {
+                <div class="group p-3 border rounded-lg hover:bg-orange-50 hover:border-orange-200 transition-all flex justify-between items-center bg-white">
+                    <div onclick="loadRecipe(@p.MaSP, '@p.Ten', '@p.HinhAnh')" class="flex items-center gap-3 flex-1 cursor-pointer">
+                        <img src="@(p.HinhAnh ?? "https://via.placeholder.com/50")" class="w-10 h-10 rounded object-cover border bg-gray-50" onerror="this.src='https://via.placeholder.com/50'" />
+                        <div>
+                            <div class="font-bold text-sm text-gray-800">@p.Ten</div>
+                            <div class="text-xs text-gray-500">@string.Format("{0:N0}đ", p.GiaBan)</div>
+                        </div>
+                    </div>
+
+                    <button onclick="openProductModal(@p.MaSP, '@p.Ten', '@p.DanhMuc', @p.GiaBan, '@p.HinhAnh')"
+                            class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Sửa thông tin món">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="md:col-span-2 bg-white rounded-xl shadow-sm border p-6 h-fit">
+        <div id="recipe-content" class="hidden">
+            <div class="flex items-start gap-4 border-b pb-4 mb-4">
+                <img id="display-img" src="" class="w-20 h-20 rounded-xl object-cover border shadow-sm" />
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <i data-lucide="flask-conical" class="text-orange-600"></i>
+                        <span id="selected-product-name" class="text-orange-600"></span>
+                    </h2>
+                    <p class="text-sm text-gray-500 mt-1">Thiết lập định lượng nguyên liệu cho 1 ly tiêu chuẩn (Size M).</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                <table class="w-full text-sm">
+                    <thead><tr><th class="text-left pb-2">Nguyên liệu</th><th class="text-right pb-2">Định lượng</th><th></th></tr></thead>
+                    <tbody id="recipe-list" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+
+            <div class="flex gap-2 items-end border-t pt-4">
+                <div class="flex-1">
+                    <label class="text-xs font-bold text-gray-500">Nguyên liệu</label>
+                    @Html.DropDownList("MaNL", (IEnumerable<SelectListItem>)ViewBag.NguyenLieuList, new { @class = "w-full border rounded px-2 py-2", @id = "select-nl" })
+                </div>
+                <div class="w-24">
+                    <label class="text-xs font-bold text-gray-500">Lượng</label>
+                    <input type="number" id="input-amount" class="w-full border rounded px-2 py-2" placeholder="0" />
+                </div>
+                <button onclick="addIng()" class="bg-green-500 text-white px-4 py-2 rounded font-bold hover:bg-green-600">Thêm</button>
+            </div>
+        </div>
+
+        <div id="empty-state" class="text-center text-gray-400 py-20">
+            <i data-lucide="chef-hat" class="w-16 h-16 mx-auto mb-2 opacity-20"></i>
+            <p>Chọn một món để xem hoặc chỉnh sửa công thức</p>
+        </div>
+    </div>
+</div>
+
+<div id="prodModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeProdModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-xl font-bold text-gray-800 mb-4" id="prod-modal-title">Thông tin sản phẩm</h3>
+
+        <form action="@Url.Action("SaveProduct", "Recipe")" method="post" enctype="multipart/form-data" class="space-y-4">
+            <input type="hidden" id="prod-id" name="MaSP" value="0" />
+            <input type="hidden" id="prod-current-img" name="HinhAnh" />
+
+            <div class="text-center">
+                <img id="preview-img" src="https://via.placeholder.com/150" class="w-24 h-24 rounded-lg object-cover mx-auto border mb-2" />
+                <label class="cursor-pointer text-sm text-blue-600 font-bold hover:underline">
+                    <i data-lucide="upload" class="w-3 h-3 inline"></i> Chọn ảnh mới
+                    <input type="file" name="imageFile" class="hidden" onchange="previewFile(this)" accept="image/*" />
+                </label>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Tên món</label>
+                <input type="text" id="prod-name" name="Ten" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Danh mục</label>
+                    <select id="prod-cat" name="DanhMuc" class="w-full px-3 py-2 border rounded-lg bg-white">
+                        <option>Trà Sữa</option>
+                        <option>Trà Trái Cây</option>
+                        <option>Trà Nguyên Chất</option>
+                        <option>Topping</option>
+                        <option>Khác</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Giá bán</label>
+                    <input type="number" id="prod-price" name="GiaBan" required class="w-full px-3 py-2 border rounded-lg" />
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeProdModal()" class="flex-1 py-2 bg-gray-100 font-bold rounded-lg text-gray-600">Hủy</button>
+                <button type="submit" class="flex-1 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700">Lưu lại</button>
+            </div>
+        </form>
+    </div>
+</div>
+@section scripts {
+    <script>
+        lucide.createIcons();
+        let currentProdId = 0;
+
+        // 1. Hàm load công thức (Cập nhật để hiện ảnh lớn ở cột phải)
+        function loadRecipe(id, name, img) {
+            currentProdId = id;
+            $('#selected-product-name').text(name);
+            $('#display-img').attr('src', img || 'https://via.placeholder.com/150'); // Hiện ảnh
+            $('#empty-state').addClass('hidden');
+            $('#recipe-content').removeClass('hidden');
+
+            $.get('/Recipe/GetRecipe?productId=' + id, function (data) {
+                const tbody = $('#recipe-list');
+                tbody.empty();
+                data.forEach(item => {
+                    tbody.append(`
+                            <tr class="py-2 border-b border-dashed last:border-0">
+                                <td class="py-2">${item.TenNL}</td>
+                                <td class="text-right font-bold">${item.DinhLuong} ${item.DonVi}</td>
+                                <td class="text-right"><button onclick="removeIng(${item.MaCongThuc})" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                            </tr>
+                        `);
+                });
+                lucide.createIcons();
+            });
+        }
+
+        // 2. Mở Modal Thêm/Sửa Sản phẩm
+        function openProductModal(id, name, cat, price, img) {
+            if (id === 0) {
+                // Thêm mới
+                $('#prod-modal-title').text('Thêm món mới');
+                $('#prod-id').val(0);
+                $('#prod-name').val('');
+                $('#prod-cat').val('Trà Sữa');
+                $('#prod-price').val('');
+                $('#preview-img').attr('src', 'https://via.placeholder.com/150');
+            } else {
+                // Sửa
+                $('#prod-modal-title').text('Cập nhật món');
+                $('#prod-id').val(id);
+                $('#prod-name').val(name);
+                $('#prod-cat').val(cat);
+                $('#prod-price').val(price);
+                $('#prod-current-img').val(img); // Lưu đường dẫn cũ
+                $('#preview-img').attr('src', img || 'https://via.placeholder.com/150');
+            }
+            $('#prodModal').removeClass('hidden');
+        }
+
+        function closeProdModal() {
+            $('#prodModal').addClass('hidden');
+        }
+
+        // 3. Xem trước ảnh khi chọn file
+        function previewFile(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#preview-img').attr('src', e.target.result);
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ... (Giữ nguyên các hàm addIng, removeIng cũ của bạn) ...
+        function addIng() {
+            const maNL = $('#select-nl').val();
+            const amount = $('#input-amount').val();
+            if (!amount) return alert('Vui lòng nhập số lượng');
+
+            $.post('/Recipe/AddIngredient', { maSP: currentProdId, maNL: maNL, dinhLuong: amount }, function () {
+                // Load lại công thức mà không cần ảnh/tên (vì đã có trên màn hình)
+                const currentName = $('#selected-product-name').text();
+                const currentImg = $('#display-img').attr('src');
+                loadRecipe(currentProdId, currentName, currentImg);
+                $('#input-amount').val('');
+            });
+        }
+
+        function removeIng(id) {
+            if (confirm('Xóa nguyên liệu này?')) {
+                $.post('/Recipe/RemoveIngredient', { maCongThuc: id }, function () {
+                    const currentName = $('#selected-product-name').text();
+                    const currentImg = $('#display-img').attr('src');
+                    loadRecipe(currentProdId, currentName, currentImg);
+                });
+            }
+        }
+    </script>
+}

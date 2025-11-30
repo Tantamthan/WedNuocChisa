@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title - Hisa Tea POS</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        orange: {
+                            50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74',
+                            400: '#fb923c', 500: '#f97316', 600: '#ea580c', 700: '#c2410c'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="h-screen bg-gray-100 font-sans text-gray-800 relative flex flex-col overflow-hidden">
+
+        <div class="bg-gradient-to-r from-orange-600 to-orange-500 text-white p-3 flex items-center justify-between shadow-md flex-shrink-0 z-30 h-14">
+            <div class="flex items-center gap-3">
+                <div class="bg-white text-orange-600 p-1.5 rounded-lg shadow-sm">
+                    <i data-lucide="coffee" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight leading-none">HISA Tea</h1>
+                    <span class="text-xs opacity-80 font-medium">POS System (.NET)</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+
+                @if (Session["UserID"] != null)
+                {
+                    <div class="text-right hidden sm:block">
+                        <div class="text-xs font-medium opacity-80">
+                            @(Session["Role"] ?? "Nhân viên")
+                        </div>
+                        <div class="text-sm font-bold leading-none">
+                            @(Session["UserName"] ?? "User")
+                        </div>
+                    </div>
+
+                    <a href="@Url.Action("Logout", "Account")"
+                       class="p-2 bg-white/20 hover:bg-red-500 hover:text-white rounded-full transition-all text-white border border-white/20 shadow-sm"
+                       title="Đăng xuất">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </a>
+                }
+                else
+                {
+                    <a href="@Url.Action("Login", "Account")"
+                       class="px-4 py-2 bg-white text-orange-600 font-bold rounded-lg text-sm hover:bg-gray-100 shadow-sm transition-colors flex items-center gap-2">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Đăng nhập
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden">
+
+            @{
+                var userRole = Session["Role"] as string;
+            }
+
+            <nav class="w-20 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-2 hidden md:flex z-20">
+
+                <a href="@Url.Action("Index", "Home")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Home" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                    <i data-lucide="home" class="w-6 h-6"></i>
+                    <span class="text-[10px] font-medium">Tổng Quan</span>
+                </a>
+
+                <a href="@Url.Action("POS", "Order")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Order" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                    <i data-lucide="coffee" class="w-6 h-6"></i>
+                    <span class="text-[10px] font-medium">Bán Hàng</span>
+                </a>
+
+                <a href="@Url.Action("Index", "Kitchen")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Kitchen" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                    <i data-lucide="chef-hat" class="w-6 h-6"></i>
+                    <span class="text-[10px] font-medium">Bếp</span>
+                </a>
+
+                <a href="@Url.Action("Index", "Shift")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Shift" && ViewContext.RouteData.Values["action"].ToString() == "Index" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                    <i data-lucide="clock" class="w-6 h-6"></i>
+                    <span class="text-[10px] font-medium text-center">Chấm Công</span>
+                </a>
+
+                @if (userRole == "Quản lý")
+                {
+                    <a href="@Url.Action("Schedule", "Shift")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["action"].ToString() == "Schedule" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="calendar-range" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium text-center">Xếp Ca</span>
+                    </a>
+
+                    <a href="@Url.Action("Index", "Recipe")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Recipe" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="book" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium">Công Thức</span>
+                    </a>
+
+                    <a href="@Url.Action("Index", "Inventory")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Inventory" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="package" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium">Kho</span>
+                    </a>
+
+                    <a href="@Url.Action("Index", "Staff")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Staff" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="users" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium">Nhân Sự</span>
+                    </a>
+
+                    <a href="@Url.Action("Index", "Report")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Report" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="trending-up" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium">Báo Cáo</span>
+                    </a>
+                    <a href="@Url.Action("Index", "Setting")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Setting" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="settings" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium">Cài Đặt</span>
+                    </a>
+                    <a href="@Url.Action("Index", "Promotion")" class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 @(ViewContext.RouteData.Values["controller"].ToString() == "Promotion" ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-gray-400 hover:bg-gray-50")">
+                        <i data-lucide="ticket" class="w-6 h-6"></i>
+                        <span class="text-[10px] font-medium">Khuyến Mãi</span>
+                    </a>
+                }
+            </nav>
+
+            <main class="flex-1 overflow-hidden bg-gray-50/50 p-2 sm:p-4 relative flex flex-col">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    @RenderSection("scripts", required: false)
+</body>
+</html>

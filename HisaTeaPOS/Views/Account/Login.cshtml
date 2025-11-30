@@ -1,0 +1,38 @@
+﻿@{ Layout = null; }
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Đăng Nhập - Hisa Tea</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-orange-400 to-red-500 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">HISA Tea POS</h1>
+            <p class="text-gray-500">Đăng nhập hệ thống</p>
+        </div>
+
+        <form action="/Account/Login" method="post" class="space-y-4">
+            <div>
+                <input type="text" name="username" placeholder="Tài khoản" required
+                       class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" />
+            </div>
+            <div>
+                <input type="password" name="password" placeholder="Mật khẩu" required
+                       class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" />
+            </div>
+
+            @if (ViewBag.Error != null)
+            {
+                <div class="text-red-500 text-sm text-center bg-red-50 p-2 rounded">@ViewBag.Error</div>
+            }
+
+            <button type="submit" class="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold shadow-lg transition-all">
+                ĐĂNG NHẬP
+            </button>
+        </form>
+    </div>
+</body>
+</html>

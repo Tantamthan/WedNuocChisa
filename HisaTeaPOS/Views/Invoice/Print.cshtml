@@ -1,0 +1,51 @@
+﻿@model HisaTeaPOS.Models.DonHang
+@{ Layout = null; }
+<!DOCTYPE html>
+<html>
+<head>
+    <title>In Hóa Đơn #@Model.MaDon</title>
+    <style>
+         body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; padding: 10px; }
+         .text-center { text-align: center; }
+         .text-right { text-align: right; }
+         .bold { font-weight: bold; }
+         .border-b { border-bottom: 1px dashed #000; margin: 5px 0; }
+        @@media print { .no-print { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="text-center">
+        <h2 class="bold">@ViewBag.TenQuan</h2>
+        <p>@ViewBag.DiaChi</p>
+        <p>Wifi: @ViewBag.WifiPass</p>
+    </div>
+
+    <div class="border-b"></div>
+    <div class="text-center" style="margin-top: 20px;">
+        <p class="italic">@ViewBag.LoiChao</p>
+    </div>
+
+    <button class="no-print" onclick="window.close()" ...>Đóng</button>    
+    <table style="width: 100%; font-size: 12px;">
+        @foreach(var item in Model.ChiTietDonHangs) {
+            <tr>
+                <td colspan="2" class="bold">@item.SanPham.Ten (@item.KichCo)</td>
+            </tr>
+            <tr>
+                <td>SL: @item.SoLuong | @item.MucDuong% đường</td>
+                <td class="text-right">@string.Format("{0:N0}", item.ThanhTien)</td>
+            </tr>
+        }
+    </table>
+    
+    <div class="border-b"></div>
+    <div class="text-right bold" style="font-size: 16px; margin-top: 10px;">
+        TỔNG: @string.Format("{0:N0}", Model.TongTien)đ
+    </div>
+    <div class="text-center" style="margin-top: 20px;">
+        <p>Cảm ơn & Hẹn gặp lại!</p>
+    </div>
+    
+    <button class="no-print" onclick="window.close()" style="margin-top:20px; width:100%; padding: 10px;">Đóng</button>
+</body>
+</html>

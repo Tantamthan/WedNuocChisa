@@ -1,0 +1,62 @@
+﻿@model IEnumerable<HisaTeaPOS.Models.KhuyenMai>
+@{ ViewBag.Title = "Quản lý Khuyến Mãi"; Layout = "~/Views/Shared/_Layout.cshtml"; }
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in">
+    <div class="bg-white p-5 rounded-xl shadow-sm border h-fit">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="ticket" class="text-orange-600"></i> Tạo mã giảm giá</h3>
+        <form action="@Url.Action("Save", "Promotion")" method="post" class="space-y-3">
+            <input type="hidden" name="MaKM" value="0" />
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Mã Code (Viết liền)</label>
+                <input type="text" name="MaCode" required class="w-full p-2 border rounded uppercase font-bold" placeholder="VD: SALE10" />
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Tên chương trình</label>
+                <input type="text" name="TenCT" required class="w-full p-2 border rounded" placeholder="Giảm giá khai trương..." />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Loại</label>
+                    <select name="LoaiKM" class="w-full p-2 border rounded bg-white">
+                        <option value="phantram">Theo %</option>
+                        <option value="tientru">Trừ tiền</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase">Giá trị</label>
+                    <input type="number" name="GiaTri" required class="w-full p-2 border rounded" placeholder="10" />
+                </div>
+            </div>
+            <button class="w-full py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700">Lưu Mã</button>
+        </form>
+    </div>
+
+    <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-50 border-b font-bold text-gray-600">
+                <tr><th>Mã</th><th>Tên</th><th>Giảm</th><th>Trạng thái</th><th>Xóa</th></tr>
+            </thead>
+            <tbody class="divide-y">
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="p-3 font-mono font-bold text-blue-600">@item.MaCode</td>
+                        <td class="p-3">@item.TenCT</td>
+                        <td class="p-3 font-bold text-orange-600">
+                            @(item.LoaiKM == "phantram" ? item.GiaTri + "%" : string.Format("{0:N0}đ", item.GiaTri))
+                        </td>
+                        <td class="p-3">
+                            <a href="@Url.Action("ToggleStatus", "Promotion", new { id = item.MaKM })"
+                               class="px-2 py-1 rounded text-xs font-bold @(item.TrangThai == true ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")">
+                                @(item.TrangThai == true ? "Đang chạy" : "Đã tắt")
+                            </a>
+                        </td>
+                        <td class="p-3"><a href="@Url.Action("Delete", "Promotion", new { id = item.MaKM })" onclick="return confirm('Xóa?')" class="text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+@section scripts {
+    <script>lucide.createIcons();</script> }

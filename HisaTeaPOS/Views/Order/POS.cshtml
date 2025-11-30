@@ -1,0 +1,515 @@
+﻿@model IEnumerable<HisaTeaPOS.Models.SanPham>
+@{
+    ViewBag.Title = "Bán Hàng";
+    var toppings = ViewBag.Toppings as IEnumerable<HisaTeaPOS.Models.Topping>;
+}
+
+<div class="flex flex-col lg:flex-row gap-4 h-full relative">
+    <div class="flex-1 flex flex-col min-h-0 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+        <div class="p-3 border-b space-y-2 bg-white z-10 flex-shrink-0">
+            <input type="text" id="searchBox" placeholder="Tìm nhanh món..." class="w-full px-4 py-2 bg-gray-50 border-transparent rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 bg-gray-50/30">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pb-20">
+                @foreach (var item in Model)
+                {
+                    // Kiểm tra xem có nguyên liệu nào hết hàng không
+                    bool isOutOfStock = false;
+                    foreach (var ct in item.CongThucs)
+                    {
+                        if (ct.NguyenLieu != null && (ct.NguyenLieu.TonKho ?? 0) <= 50) // Hết hoặc sắp hết (<50g)
+                        {
+                            isOutOfStock = true;
+                            break;
+                        }
+                    }
+
+                    <button onclick="@(isOutOfStock ? "" : $"selectProduct({item.MaSP}, '{HttpUtility.JavaScriptStringEncode(item.Ten)}', {item.GiaBan}, '{item.HinhAnh}')")"
+                            class="group relative flex flex-col rounded-xl overflow-hidden shadow-sm border border-gray-100 transition-all @(isOutOfStock ? "bg-gray-100 cursor-not-allowed opacity-60" : "bg-white hover:shadow-md")">
+
+                        <div class="h-32 w-full bg-white relative">
+                            <img src="@(item.HinhAnh ?? "https://via.placeholder.com/150")" class="w-full h-full object-contain p-1 @(isOutOfStock ? "grayscale" : "")" />
+
+                            @if (isOutOfStock)
+                            {
+                                <div class="absolute inset-0 bg-black/10 flex items-center justify-center">
+                                    <span class="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow">HẾT HÀNG</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="p-2 text-left flex-1 flex flex-col">
+                            <div class="text-[10px] text-orange-600 font-bold uppercase mb-1">@item.DanhMuc</div>
+                            <div class="font-bold text-gray-800 text-sm leading-tight mb-1 line-clamp-2 flex-1">@item.Ten</div>
+                            <div class="font-bold text-base text-gray-900">@string.Format("{0:N0}đ", item.GiaBan)</div>
+                        </div>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+
+    <div class="lg:w-96 w-full bg-white rounded-xl shadow-md border border-gray-100 flex flex-col h-full overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex justify-between items-center h-16">
+            <h3 class="font-bold text-gray-800 text-lg">Giỏ hàng</h3>
+            <button onclick="clearCart()" class="text-xs text-red-500 hover:underline font-medium">Xóa tất cả</button>
+        </div>
+
+        <div id="cartItems" class="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
+        </div>
+
+        <div class="p-4 bg-white border-t shadow-lg z-10">
+            <div class="p-3 border-t bg-gray-50">
+                <div class="flex gap-2">
+                    <input type="text" id="coupon-code" placeholder="Mã giảm giá..." class="flex-1 px-2 py-1 border rounded text-sm uppercase outline-none focus:border-orange-500" />
+                    <button onclick="applyCoupon()" class="bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black">Áp dụng</button>
+                </div>
+                <div id="discount-row" class="flex justify-between text-sm text-green-600 font-bold mt-2 hidden">
+                    <span>Giảm giá:</span>
+                    <span id="discount-amount">-0đ</span>
+                </div>
+            </div>
+            <div class="flex justify-between text-sm text-gray-500 mb-1">
+                <span>Tạm tính</span>
+                <span id="subTotal">0đ</span>
+            </div>
+            <div class="flex justify-between font-black text-2xl text-gray-900 mb-4 items-end">
+                <span>Tổng cộng</span>
+                <span class="text-orange-600" id="totalAmount">0đ</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mb-3 bg-gray-100 p-1 rounded-xl">
+                <button onclick="setPaymentMethod('cash')" id="btn-cash"
+                        class="py-2 rounded-lg text-xs font-bold transition-all bg-white text-green-700 shadow-sm border border-transparent">
+                    Tiền mặt
+                </button>
+                <button onclick="setPaymentMethod('transfer')" id="btn-transfer"
+                        class="py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-700 border border-transparent">
+                    Chuyển khoản
+                </button>
+            </div>
+
+            <button onclick="checkout()" class="w-full py-3 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-3 text-sm uppercase tracking-wide transition-all active:scale-[0.98]">
+                <i data-lucide="arrow-right-circle" class="w-5 h-5"></i> THANH TOÁN
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="productModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+
+    <div class="absolute bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:bottom-auto lg:-translate-x-1/2 lg:-translate-y-1/2 bg-white rounded-t-2xl lg:rounded-2xl w-full lg:w-[500px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300">
+
+        <div class="relative h-40 bg-gray-900">
+            <img id="modal-img" src="" class="w-full h-full object-cover opacity-80" />
+            <div class="absolute bottom-4 left-4 text-white">
+                <h2 id="modal-title" class="text-xl font-bold leading-tight">Ten Mon</h2>
+                <div id="modal-base-price" class="text-lg font-medium text-orange-300">0đ</div>
+            </div>
+            <button onclick="closeModal()" class="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="p-5 space-y-5 max-h-[60vh] overflow-y-auto">
+
+            <div>
+                <label class="text-sm font-bold text-gray-900 uppercase tracking-wide block mb-2">Chọn Size</label>
+                <div class="flex p-1 bg-gray-100 rounded-xl">
+                    <button onclick="setSize('S')" id="size-S" class="size-btn flex-1 py-3 rounded-lg text-sm font-bold text-gray-500 transition-all">Size S</button>
+                    <button onclick="setSize('M')" id="size-M" class="size-btn flex-1 py-3 rounded-lg text-sm font-bold bg-white text-orange-600 shadow-sm transition-all">Size M</button>
+                    <button onclick="setSize('L')" id="size-L" class="size-btn flex-1 py-3 rounded-lg text-sm font-bold text-gray-500 transition-all">Size L</button>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex justify-between mb-2">
+                    <label class="text-sm font-bold text-gray-900 uppercase tracking-wide">Độ Ngọt</label>
+                    <span id="sugar-display" class="text-sm font-bold text-orange-600">100%</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2">
+                    @foreach (var level in new[] { 0, 30, 50, 70, 100 })
+                    {
+                        <button onclick="setSugar(@level)" id="sugar-@level" class="sugar-btn py-2 rounded-lg text-xs font-bold border border-gray-200 hover:border-orange-500 transition-all">@level%</button>
+                    }
+                </div>
+            </div>
+
+            <div>
+                <label class="text-sm font-bold text-gray-900 uppercase tracking-wide block mb-2">Topping Thêm</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-sm font-bold text-gray-900 uppercase tracking-wide block mb-2">Topping Thêm</label>
+                        <div class="space-y-2">
+                            @if (ViewBag.Toppings != null)
+                            {
+                                foreach (var t in ViewBag.Toppings as IEnumerable<HisaTeaPOS.Models.Topping>)
+                                {
+                                    // Kiểm tra kho topping
+                                    bool topOutOfStock = t.NguyenLieu != null && (t.NguyenLieu.TonKho ?? 0) <= 10;
+
+                                    <div class="flex justify-between items-center p-2 border border-gray-100 rounded-lg @(topOutOfStock ? "bg-gray-100 opacity-50" : "hover:bg-gray-50") transition-colors">
+                                        <div class="flex-1">
+                                            <div class="text-sm font-bold text-gray-700">
+                                                @t.Ten
+                                                @if (topOutOfStock)
+                                                {<span class="text-red-500 text-[10px]">(Hết)</span>}
+                                            </div>
+                                            <div class="text-xs text-gray-500">+@string.Format("{0:N0}đ", t.GiaBan)</div>
+                                        </div>
+
+                                        <div class="flex items-center gap-3 bg-white border rounded-lg p-1 shadow-sm">
+                                            @if (topOutOfStock)
+                                            {
+                                                <button disabled class="w-7 h-7 flex items-center justify-center rounded bg-gray-200 text-gray-400 cursor-not-allowed">-</button>
+                                                <span class="text-sm font-bold w-4 text-center text-gray-400">0</span>
+                                                <button disabled class="w-7 h-7 flex items-center justify-center rounded bg-gray-200 text-gray-400 cursor-not-allowed">+</button>
+                                            }
+                                            else
+                                            {
+                                                <button onclick="changeToppingQty(@t.MaTop, '@t.Ten', @t.GiaBan, -1)" class="..."> - </button>
+                                                <span id="top-qty-@t.MaTop" class="...">0</span>
+                                                <button onclick="changeToppingQty(@t.MaTop, '@t.Ten', @t.GiaBan, 1)" class="..."> + </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 border-t bg-white shadow-lg z-10">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-3">
+                    <button onclick="adjustQty(-1)" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center font-bold">-</button>
+                    <span id="modal-qty" class="font-bold text-lg w-6 text-center">1</span>
+                    <button onclick="adjustQty(1)" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center font-bold text-green-600">+</button>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs text-gray-500">Tạm tính</div>
+                    <div id="modal-total" class="text-xl font-black text-gray-900">0đ</div>
+                </div>
+            </div>
+            <button onclick="confirmAddToCart()" class="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 text-lg transition-all active:scale-[0.98]">
+                <i data-lucide="plus" class="w-6 h-6"></i> Thêm vào đơn
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. KHỞI TẠO DỮ LIỆU ---
+    // [MỚI] Thử lấy giỏ hàng từ bộ nhớ trình duyệt ra trước
+    const savedCart = localStorage.getItem('hisa_cart');
+    let cart = savedCart ? JSON.parse(savedCart) : [];
+
+    let currentPaymentMethod = 'cash';
+    const sizeConfig = { 'S': 0.8, 'M': 1.0, 'L': 1.3 };
+
+    // Biến tạm Modal
+    let tempItem = { id: 0, name: '', basePrice: 0, img: '', size: 'M', sugar: 100, qty: 1, toppings: [], toppingNames: [] };
+    let currentToppingPrice = 0;
+
+    // --- KHI TRANG VỪA TẢI XONG -> VẼ LẠI GIỎ HÀNG CŨ ---
+    document.addEventListener("DOMContentLoaded", function () {
+        if (cart.length > 0) {
+            renderCart(); // Vẽ lại nếu có hàng cũ
+        }
+    });
+
+    // --- 2. XỬ LÝ CHỌN PHƯƠNG THỨC THANH TOÁN ---
+    function setPaymentMethod(method) {
+        currentPaymentMethod = method;
+        const btnCash = document.getElementById('btn-cash');
+        const btnTransfer = document.getElementById('btn-transfer');
+
+        const defaultClass = "py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-700 border border-transparent";
+        const activeClassCash = "py-2 rounded-lg text-xs font-bold transition-all bg-white text-green-700 shadow-sm border border-transparent";
+        const activeClassTransfer = "py-2 rounded-lg text-xs font-bold transition-all bg-white text-blue-700 shadow-sm border border-transparent";
+
+        btnCash.className = defaultClass;
+        btnTransfer.className = defaultClass;
+
+        if (method === 'cash') {
+            btnCash.className = activeClassCash;
+        } else {
+            btnTransfer.className = activeClassTransfer;
+        }
+    }
+
+    // --- 3. CÁC HÀM XỬ LÝ MODAL ---
+    function selectProduct(id, name, price, img) {
+        tempItem = { id, name, basePrice: price, img, size: 'M', sugar: 100, qty: 1, toppings: [], toppingNames: [] };
+        currentToppingPrice = 0;
+
+        $('#modal-title').text(name);
+        $('#modal-base-price').text(price.toLocaleString() + 'đ');
+        $('#modal-img').attr('src', img || 'https://via.placeholder.com/400');
+
+        $('.size-btn').removeClass('bg-white text-orange-600 shadow-sm').addClass('text-gray-500');
+        $('#size-M').addClass('bg-white text-orange-600 shadow-sm').removeClass('text-gray-500');
+
+        $('.sugar-btn').removeClass('border-orange-500 bg-orange-50 text-orange-700');
+        $('#sugar-100').addClass('border-orange-500 bg-orange-50 text-orange-700');
+
+        $('.topping-btn').removeClass('active border-orange-500 bg-orange-50 ring-1 ring-orange-500');
+
+        updateModalTotal();
+        $('#modal-qty').text(1);
+        $('#productModal').removeClass('hidden');
+    }
+
+    function setSize(s) {
+        tempItem.size = s;
+        $('.size-btn').removeClass('bg-white text-orange-600 shadow-sm').addClass('text-gray-500');
+        $('#size-' + s).addClass('bg-white text-orange-600 shadow-sm').removeClass('text-gray-500');
+        updateModalTotal();
+    }
+
+    function setSugar(l) {
+        tempItem.sugar = l;
+        $('#sugar-display').text(l + '%');
+        $('.sugar-btn').removeClass('border-orange-500 bg-orange-50 text-orange-700');
+        $('#sugar-' + l).addClass('border-orange-500 bg-orange-50 text-orange-700');
+    }
+
+    function toggleTopping(id, name, price) {
+        const btn = $('#top-' + id);
+        const index = tempItem.toppings.indexOf(id);
+
+        if (index === -1) {
+            tempItem.toppings.push(id);
+            tempItem.toppingNames.push(name);
+            currentToppingPrice += price;
+            btn.addClass('active border-orange-500 bg-orange-50 ring-1 ring-orange-500');
+        } else {
+            tempItem.toppings.splice(index, 1);
+            tempItem.toppingNames.splice(tempItem.toppingNames.indexOf(name), 1);
+            currentToppingPrice -= price;
+            btn.removeClass('active border-orange-500 bg-orange-50 ring-1 ring-orange-500');
+        }
+        updateModalTotal();
+    }
+
+    function adjustQty(delta) {
+        const newQty = tempItem.qty + delta;
+        if (newQty >= 1) {
+            tempItem.qty = newQty;
+            $('#modal-qty').text(newQty);
+            updateModalTotal();
+        }
+    }
+
+    function updateModalTotal() {
+        const unitPrice = (tempItem.basePrice * sizeConfig[tempItem.size]) + currentToppingPrice;
+        const total = unitPrice * tempItem.qty;
+        $('#modal-total').text(total.toLocaleString() + 'đ');
+    }
+
+    function closeModal() {
+        $('#productModal').addClass('hidden');
+    }
+
+    function confirmAddToCart() {
+        const finalUnitPrice = (tempItem.basePrice * sizeConfig[tempItem.size]) + currentToppingPrice;
+        cart.push({
+            cartId: Date.now(),
+            id: tempItem.id,
+            name: tempItem.name,
+            price: finalUnitPrice,
+            qty: tempItem.qty,
+            size: tempItem.size,
+            sugar: tempItem.sugar,
+            tops: [...tempItem.toppings],
+            topNames: [...tempItem.toppingNames]
+        });
+        renderCart();
+        closeModal();
+    }
+    function changeToppingQty(id, name, price, delta) {
+        const qtySpan = $('#top-qty-' + id);
+        let currentQty = parseInt(qtySpan.text()) || 0;
+
+        // Tính số lượng mới
+        let newQty = currentQty + delta;
+        if (newQty < 0) return; // Không được âm
+
+        // Cập nhật giao diện số lượng
+        qtySpan.text(newQty);
+
+        if (delta > 0) {
+            // Nếu là cộng: Thêm ID vào mảng toppings, Thêm Tên vào mảng toppingNames
+            tempItem.toppings.push(id);
+            tempItem.toppingNames.push(name);
+            currentToppingPrice += price;
+        } else {
+            // Nếu là trừ: Tìm vị trí và xóa 1 phần tử
+            const idx = tempItem.toppings.indexOf(id);
+            if (idx > -1) {
+                tempItem.toppings.splice(idx, 1);
+                // Xóa tên tương ứng (tìm tên trong mảng tên)
+                const nameIdx = tempItem.toppingNames.indexOf(name);
+                if (nameIdx > -1) tempItem.toppingNames.splice(nameIdx, 1);
+
+                currentToppingPrice -= price;
+            }
+        }
+
+        updateModalTotal();
+    }
+
+    // --- 4. RENDER GIỎ HÀNG (CÓ LƯU LOCALSTORAGE) ---
+    function renderCart() {
+        // [MỚI] Lưu giỏ hàng vào bộ nhớ trình duyệt mỗi khi render
+        localStorage.setItem('hisa_cart', JSON.stringify(cart));
+
+        const container = document.getElementById('cartItems');
+        const totalEl = document.getElementById('totalAmount');
+        const subTotalEl = document.getElementById('subTotal');
+
+        if (!container) return;
+
+        container.innerHTML = '';
+        let total = 0;
+
+        cart.forEach((item, index) => {
+            const itemTotal = item.price * item.qty;
+            total += itemTotal;
+
+            let toppingHtml = '';
+            if (item.topNames && item.topNames.length > 0) {
+                toppingHtml = `<div class="text-xs text-gray-500 mt-1">+ ${item.topNames.join(', ')}</div>`;
+            }
+
+            const html = `
+                <div class="p-3 bg-white border border-gray-100 rounded-xl shadow-sm flex gap-3 relative animate-in fade-in slide-in-from-right-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start">
+                            <div class="font-bold text-gray-800 text-sm truncate pr-2">${item.name}</div>
+                            <div class="text-orange-600 font-bold text-sm">${itemTotal.toLocaleString()}đ</div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-1">
+                            <span class="bg-gray-100 px-1.5 rounded text-gray-600 font-medium">${item.size}</span>
+                            <span class="bg-gray-100 px-1.5 rounded text-gray-600">${item.sugar}% Đường</span>
+                            <span class="text-gray-400 font-bold ml-1">x${item.qty}</span>
+                        </div>
+                        ${toppingHtml}
+                    </div>
+                    <button onclick="removeFromCart(${index})" class="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            container.innerHTML += html;
+        });
+
+        const formattedTotal = total.toLocaleString() + 'đ';
+        if (totalEl) totalEl.innerText = formattedTotal;
+        if (subTotalEl) subTotalEl.innerText = formattedTotal;
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function clearCart() {
+        cart = [];
+        renderCart();
+    }
+
+    // --- 5. THANH TOÁN ---
+    function checkout() {
+        if (cart.length === 0) return alert("Giỏ hàng trống!");
+
+        const orderData = {
+            Total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+            PaymentMethod: currentPaymentMethod,
+            Items: cart.map(c => ({
+                ProductId: c.id,
+                Quantity: c.qty,
+                Size: c.size,
+                Sugar: c.sugar,
+                Price: c.price,
+                Toppings: c.tops
+            }))
+        };
+
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = 'Đang xử lý...';
+        btn.disabled = true;
+
+        fetch('/Order/Checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        })
+            .then(res => res.json())
+            .then(data => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+
+                if (data.success) {
+                    alert('✅ Thanh toán thành công! Mã đơn: ' + data.orderId);
+                    // [MỚI] Thanh toán xong thì xóa luôn trong bộ nhớ
+                    localStorage.removeItem('hisa_cart');
+                    clearCart();
+                    setPaymentMethod('cash');
+                } else {
+                    alert('❌ Lỗi: ' + data.message);
+                }
+            })
+            .catch(err => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('❌ Lỗi kết nối server');
+                console.error(err);
+            });
+    }
+    let currentDiscount = 0;
+    let currentKmId = null;
+
+    function applyCoupon() {
+        const code = $('#coupon-code').val();
+        if (!code) return;
+
+        // Tính tổng tiền hiện tại (chưa giảm)
+        const currentTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+        $.post('/Order/CheckCoupon', { code: code, total: currentTotal }, function (res) {
+            if (res.success) {
+                currentDiscount = res.discount;
+                currentKmId = res.kmId;
+
+                // Hiển thị số tiền giảm
+                $('#discount-row').removeClass('hidden');
+                $('#discount-amount').text('-' + currentDiscount.toLocaleString() + 'đ');
+
+                // Cập nhật lại tổng tiền hiển thị
+                const finalTotal = currentTotal - currentDiscount;
+                $('#totalAmount').text(finalTotal.toLocaleString() + 'đ');
+
+                alert('Áp dụng mã thành công!');
+            } else {
+                alert(res.message);
+                // Reset nếu mã sai
+                currentDiscount = 0;
+                currentKmId = null;
+                $('#discount-row').addClass('hidden');
+                renderCart(); // Vẽ lại để reset tổng tiền
+            }
+        });
+    }
+
+    // LƯU Ý: Bạn cần sửa lại hàm checkout() để gửi kèm currentKmId và tiền đã giảm về server nhé!
+</script>
+}
