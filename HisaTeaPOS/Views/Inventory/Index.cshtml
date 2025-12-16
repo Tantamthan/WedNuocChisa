@@ -160,12 +160,94 @@
         </form>
     </div>
 </div>
+<div id="addModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeAddModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-5 h-5 text-green-600"></i> Thêm nguyên liệu mới
+        </h3>
+        <form action="@Url.Action("Create", "Inventory")" method="post" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tên nguyên liệu</label>
+                <input type="text" name="Ten" required class="w-full px-3 py-2 border rounded-lg focus:border-green-500 outline-none" placeholder="VD: Trà lài, Đào hộp..." />
+            </div>
 
-@section scripts {
+            <!-- THÊM CHECKBOX NÀY -->
+            <div class="flex items-center gap-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <input type="checkbox" id="isTopping" name="IsTopping" value="true" class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500" />
+                <label for="isTopping" class="text-sm font-semibold text-orange-700 cursor-pointer flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                    Đây là Topping (tự động tạo mục topping)
+                </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Đơn vị</label>
+                    <select name="DonVi" class="w-full px-3 py-2 border rounded-lg bg-white">
+                        <option value="g">Gam (g)</option>
+                        <option value="ml">Mililit (ml)</option>
+                        <option value="hộp">Hộp</option>
+                        <option value="quả">Quả</option>
+                        <option value="bao">Bao</option>
+                        <option value="lon">Lon</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tồn đầu kỳ</label>
+                    <input type="number" name="TonKho" class="w-full px-3 py-2 border rounded-lg" placeholder="0" />
+                </div>
+            </div>
+
+            <!-- THÊM TRƯỜNG GIÁ BÁN CHO TOPPING (ẨN/HIỆN THEO CHECKBOX) -->
+            <div id="toppingFields" class="hidden space-y-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <div>
+                    <label class="block text-xs font-bold text-orange-600 uppercase mb-1">Giá bán topping</label>
+                    <input type="number" name="GiaBanTopping" step="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="0" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-orange-600 uppercase mb-1">Định lượng (g/ml)</label>
+                    <input type="number" name="DinhLuongTopping" step="0.01" class="w-full px-3 py-2 border rounded-lg" placeholder="50" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Định mức tối thiểu</label>
+                    <input type="number" name="DinhMucToiThieu" required class="w-full px-3 py-2 border rounded-lg" value="100" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Xuất xứ</label>
+                    <input type="text" name="XuatXu" class="w-full px-3 py-2 border rounded-lg outline-none" />
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeAddModal()" class="flex-1 py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">Hủy</button>
+                <button type="submit" class="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg">Thêm Mới</button>
+            </div>
+        </form>
+    </div>
+</div>@section scripts {
     <script>
+        // Kích hoạt Icon Lucide khi trang vừa tải xong
         lucide.createIcons();
 
-        // 1. Hàm mở Modal Sửa (Cập nhật nhận thêm tham số)
+        // Xử lý sự kiện Checkbox "Đây là Topping" trong Modal Thêm mới
+        // (Hiện/Ẩn các trường giá bán, định lượng)
+        const isToppingCheckbox = document.getElementById('isTopping');
+        if (isToppingCheckbox) {
+            isToppingCheckbox.addEventListener('change', function () {
+                const toppingFields = document.getElementById('toppingFields');
+                if (this.checked) {
+                    toppingFields.classList.remove('hidden');
+                } else {
+                    toppingFields.classList.add('hidden');
+                }
+            });
+        }
+
+        // Hàm mở Modal Sửa (Nhận thông tin từ nút Edit và điền vào Form)
         function openEditModal(id, name, unit, min, origin, cert, isTopping, price, amount) {
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-name').value = name;
@@ -174,7 +256,7 @@
             document.getElementById('edit-origin').value = origin;
             document.getElementById('edit-cert').value = cert;
 
-            // Xử lý phần Topping
+            // Xử lý phần Topping trong Modal Sửa
             const toppingArea = document.getElementById('edit-topping-area');
             if (isTopping) {
                 toppingArea.classList.remove('hidden');
@@ -187,16 +269,24 @@
             }
 
             document.getElementById('editModal').classList.remove('hidden');
-            lucide.createIcons();
+            lucide.createIcons(); // Render lại icon bên trong modal nếu cần
         }
 
+        // Hàm đóng Modal Sửa
         function closeEditModal() {
             document.getElementById('editModal').classList.add('hidden');
         }
 
-        // ... (Giữ nguyên các hàm cho Modal Add)
+        // Hàm đóng Modal Thêm mới
         function closeAddModal() {
             document.getElementById('addModal').classList.add('hidden');
+
+            // Reset form về trạng thái ban đầu để lần sau mở lên không bị lưu dữ liệu cũ
+            document.getElementById('isTopping').checked = false;
+            document.getElementById('toppingFields').classList.add('hidden');
+
+            // Có thể reset thêm các input khác nếu cần, ví dụ:
+            // document.querySelector('#addModal form').reset();
         }
     </script>
 }

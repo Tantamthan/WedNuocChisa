@@ -8,7 +8,21 @@ public class AccountController : Controller
 
     public ActionResult Login()
     {
-        return View();
+        var config = db.CauHinhs.FirstOrDefault();
+
+        // Nếu database chưa có cấu hình, tạo một cái mặc định để tránh lỗi null
+        if (config == null)
+        {
+            config = new CauHinh
+            {
+                TenQuan = "CHISA TEA SYSTEM",
+                LoiChao = "Vui lòng đăng nhập"
+            };
+        }
+
+        // Truyền model sang View
+        return View(config);
+       
     }
 
     [HttpPost]
@@ -32,11 +46,58 @@ public class AccountController : Controller
 
     public ActionResult Logout()
     {
-        // Xóa toàn bộ session
+      
         Session.Clear();
         Session.Abandon();
 
-        // Quay về trang đăng nhập
         return RedirectToAction("Login");
+    }
+ 
+    public ActionResult ChangePassword()
+    {
+        if (Session["UserID"] == null)
+        {
+            return RedirectToAction("Login");
+        }
+        return View();
+    }
+
+    // POST: Xử lý đổi mật khẩu
+    [HttpPost]
+    public ActionResult ChangePassword(string currentPassword, string newPassword, string confirmPassword)
+    {
+        // 1. Kiểm tra đăng nhập
+        if (Session["UserID"] == null) return RedirectToAction("Login");
+
+        int userId = (int)Session["UserID"];
+        var user = db.NhanViens.Find(userId); // Giả sử bảng nhân viên tên là NhanViens
+
+        if (user == null) return HttpNotFound();
+
+       
+        if (string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword))
+        {
+            ViewBag.Error = "Vui lòng nhập đầy đủ thông tin!";
+            return View();
+        }
+
+        if (user.MatKhau != currentPassword)
+        {
+            ViewBag.Error = "Mật khẩu hiện tại không đúng!";
+            return View();
+        }
+
+        if (newPassword != confirmPassword)
+        {
+            ViewBag.Error = "Mật khẩu xác nhận không khớp!";
+            return View();
+        }
+
+        // 5. Lưu mật khẩu mới
+        user.MatKhau = newPassword;
+        db.SaveChanges();
+
+        ViewBag.Success = "Đổi mật khẩu thành công!";
+        return View();
     }
 }

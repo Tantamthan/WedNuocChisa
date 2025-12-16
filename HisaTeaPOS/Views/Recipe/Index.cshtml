@@ -4,6 +4,58 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+@* --- 1. PHẦN CSS CHO NÚT GẠT (SWITCH) --- *@
+<style>
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 22px;
+    }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc; /* Màu xám (Ngừng bán) */
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+    input:checked + .slider {
+        background-color: #f97316;
+    }
+    /* Màu cam (Đang bán) */
+    input:focus + .slider {
+        box-shadow: 0 0 1px #f97316;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(18px);
+    }
+</style>
+
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
     <div class="md:col-span-1 bg-white rounded-xl shadow-sm border p-4 flex flex-col h-[85vh]">
         <div class="flex justify-between items-center mb-4 flex-shrink-0">
@@ -17,6 +69,7 @@
             @foreach (var p in Model)
             {
                 <div class="group p-3 border rounded-lg hover:bg-orange-50 hover:border-orange-200 transition-all flex justify-between items-center bg-white">
+
                     <div onclick="loadRecipe(@p.MaSP, '@p.Ten', '@p.HinhAnh')" class="flex items-center gap-3 flex-1 cursor-pointer">
                         <img src="@(p.HinhAnh ?? "https://via.placeholder.com/50")" class="w-10 h-10 rounded object-cover border bg-gray-50" onerror="this.src='https://via.placeholder.com/50'" />
                         <div>
@@ -25,10 +78,17 @@
                         </div>
                     </div>
 
-                    <button onclick="openProductModal(@p.MaSP, '@p.Ten', '@p.DanhMuc', @p.GiaBan, '@p.HinhAnh')"
-                            class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Sửa thông tin món">
-                        <i data-lucide="edit-2" class="w-4 h-4"></i>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <label class="switch scale-90" onclick="event.stopPropagation()" title="Bật/Tắt kinh doanh">
+                            <input type="checkbox" class="btn-toggle-status" data-id="@p.MaSP" @(p.NgungBan == true ? "" : "checked")>
+                            <span class="slider round"></span>
+                        </label>
+
+                        <button onclick="openProductModal(@p.MaSP, '@p.Ten', '@p.DanhMuc', @p.GiaBan, '@p.HinhAnh')"
+                                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Sửa thông tin món">
+                            <i data-lucide="edit-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
             }
         </div>
@@ -120,16 +180,40 @@
         </form>
     </div>
 </div>
+
 @section scripts {
     <script>
         lucide.createIcons();
         let currentProdId = 0;
 
-        // 1. Hàm load công thức (Cập nhật để hiện ảnh lớn ở cột phải)
+        // --- 3. SCRIPT XỬ LÝ SỰ KIỆN NÚT GẠT (MỚI) ---
+        $(document).ready(function () {
+            // Bắt sự kiện khi bấm nút switch
+            $(document).on('change', '.btn-toggle-status', function () {
+                var checkbox = $(this);
+                var productId = checkbox.data('id');
+                var isChecked = checkbox.is(':checked'); // True = Đang bán, False = Ngừng bán
+
+                // Gửi yêu cầu về server
+                $.post('/Recipe/ToggleStatus', { id: productId }, function (response) {
+                    if (response.success) {
+                        console.log("Cập nhật thành công ID: " + productId);
+                    } else {
+                        alert("Lỗi: " + response.message);
+                        checkbox.prop('checked', !isChecked); // Hoàn tác nếu lỗi
+                    }
+                }).fail(function () {
+                    alert("Mất kết nối server!");
+                    checkbox.prop('checked', !isChecked);
+                });
+            });
+        });
+        // ----------------------------------------------
+
         function loadRecipe(id, name, img) {
             currentProdId = id;
             $('#selected-product-name').text(name);
-            $('#display-img').attr('src', img || 'https://via.placeholder.com/150'); // Hiện ảnh
+            $('#display-img').attr('src', img || 'https://via.placeholder.com/150');
             $('#empty-state').addClass('hidden');
             $('#recipe-content').removeClass('hidden');
 
@@ -138,21 +222,19 @@
                 tbody.empty();
                 data.forEach(item => {
                     tbody.append(`
-                            <tr class="py-2 border-b border-dashed last:border-0">
-                                <td class="py-2">${item.TenNL}</td>
-                                <td class="text-right font-bold">${item.DinhLuong} ${item.DonVi}</td>
-                                <td class="text-right"><button onclick="removeIng(${item.MaCongThuc})" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
-                            </tr>
-                        `);
+                                <tr class="py-2 border-b border-dashed last:border-0">
+                                    <td class="py-2">${item.TenNL}</td>
+                                    <td class="text-right font-bold">${item.DinhLuong} ${item.DonVi}</td>
+                                    <td class="text-right"><button onclick="removeIng(${item.MaCongThuc})" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                                </tr>
+                            `);
                 });
                 lucide.createIcons();
             });
         }
 
-        // 2. Mở Modal Thêm/Sửa Sản phẩm
         function openProductModal(id, name, cat, price, img) {
             if (id === 0) {
-                // Thêm mới
                 $('#prod-modal-title').text('Thêm món mới');
                 $('#prod-id').val(0);
                 $('#prod-name').val('');
@@ -160,13 +242,12 @@
                 $('#prod-price').val('');
                 $('#preview-img').attr('src', 'https://via.placeholder.com/150');
             } else {
-                // Sửa
                 $('#prod-modal-title').text('Cập nhật món');
                 $('#prod-id').val(id);
                 $('#prod-name').val(name);
                 $('#prod-cat').val(cat);
                 $('#prod-price').val(price);
-                $('#prod-current-img').val(img); // Lưu đường dẫn cũ
+                $('#prod-current-img').val(img);
                 $('#preview-img').attr('src', img || 'https://via.placeholder.com/150');
             }
             $('#prodModal').removeClass('hidden');
@@ -176,7 +257,6 @@
             $('#prodModal').addClass('hidden');
         }
 
-        // 3. Xem trước ảnh khi chọn file
         function previewFile(input) {
             const file = input.files[0];
             if (file) {
@@ -188,14 +268,12 @@
             }
         }
 
-        // ... (Giữ nguyên các hàm addIng, removeIng cũ của bạn) ...
         function addIng() {
             const maNL = $('#select-nl').val();
             const amount = $('#input-amount').val();
             if (!amount) return alert('Vui lòng nhập số lượng');
 
             $.post('/Recipe/AddIngredient', { maSP: currentProdId, maNL: maNL, dinhLuong: amount }, function () {
-                // Load lại công thức mà không cần ảnh/tên (vì đã có trên màn hình)
                 const currentName = $('#selected-product-name').text();
                 const currentImg = $('#display-img').attr('src');
                 loadRecipe(currentProdId, currentName, currentImg);

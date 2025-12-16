@@ -7,14 +7,14 @@
       <Diagram DiagramId="3a161bdfdb9d4f1094c5e79205bc82d0" Name="Diagram1" ZoomLevel="91">
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.BangLuong" Width="1.5" PointX="3.75" PointY="6.625" IsExpanded="true" />
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.CaLamViec" Width="1.5" PointX="0.5" PointY="10.75" IsExpanded="true" />
-        <EntityTypeShape EntityType="HisaTeaDB_VNModel.ChiTietDonHang" Width="1.5" PointX="5.25" PointY="10.375" IsExpanded="true" />
-        <EntityTypeShape EntityType="HisaTeaDB_VNModel.ChiTietLuong" Width="1.5" PointX="6" PointY="6.25" IsExpanded="true" />
-        <EntityTypeShape EntityType="HisaTeaDB_VNModel.ChiTietTopping" Width="1.5" PointX="7.5" PointY="10.875" IsExpanded="true" />
-        <EntityTypeShape EntityType="HisaTeaDB_VNModel.CongThuc" Width="1.5" PointX="8.75" PointY="8.25" IsExpanded="true" />
-        <EntityTypeShape EntityType="HisaTeaDB_VNModel.DonHang" Width="1.5" PointX="3" PointY="9.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="HisaTeaDB_VNModel.ChiTietDonHang" Width="1.5" PointX="6.125" PointY="10" IsExpanded="true" />
+        <EntityTypeShape EntityType="HisaTeaDB_VNModel.ChiTietLuong" Width="1.5" PointX="7.375" PointY="6.25" IsExpanded="true" />
+        <EntityTypeShape EntityType="HisaTeaDB_VNModel.ChiTietTopping" Width="1.5" PointX="8.25" PointY="10.875" IsExpanded="true" />
+        <EntityTypeShape EntityType="HisaTeaDB_VNModel.CongThuc" Width="1.5" PointX="10.625" PointY="8.25" IsExpanded="true" />
+        <EntityTypeShape EntityType="HisaTeaDB_VNModel.DonHang" Width="1.5" PointX="3.75" PointY="9.625" IsExpanded="true" />
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.LichLamViec" Width="1.5" PointX="3" PointY="12.875" IsExpanded="true" />
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.NguyenLieu" Width="1.5" PointX="6.25" PointY="13.75" IsExpanded="true" />
-        <EntityTypeShape EntityType="HisaTeaDB_VNModel.NhanVien" Width="1.5" PointX="0.75" PointY="6.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="HisaTeaDB_VNModel.NhanVien" Width="1.5" PointX="0.5" PointY="6.5" IsExpanded="true" />
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.SanPham" Width="1.5" PointX="0.5" PointY="14.25" IsExpanded="true" />
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.sysdiagram" Width="1.5" PointX="5.75" PointY="0.75" IsExpanded="true" />
         <EntityTypeShape EntityType="HisaTeaDB_VNModel.Topping" Width="1.5" PointX="8.625" PointY="13.375" IsExpanded="true" />

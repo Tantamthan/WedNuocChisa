@@ -26,6 +26,7 @@ namespace HisaTeaPOS.Models
         public string DanhMuc { get; set; }
         public decimal GiaBan { get; set; }
         public string HinhAnh { get; set; }
+        public bool NgungBan { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<ChiTietDonHang> ChiTietDonHangs { get; set; }

@@ -22,18 +22,17 @@ namespace HisaTeaPOS.Controllers
         {
             if (model.MaNV == 0)
             {
-                // THÊM MỚI
-                // Kiểm tra trùng tài khoản
+        
                 if (db.NhanViens.Any(x => x.TaiKhoan == model.TaiKhoan))
                 {
-                    // Tạm thời return luôn nếu trùng (thực tế nên báo lỗi ra view)
+                   
                     return RedirectToAction("Index");
                 }
                 db.NhanViens.Add(model);
             }
             else
             {
-                // CẬP NHẬT
+            
                 var emp = db.NhanViens.Find(model.MaNV);
                 if (emp != null)
                 {
@@ -46,7 +45,7 @@ namespace HisaTeaPOS.Controllers
                     {
                         emp.MatKhau = model.MatKhau;
                     }
-                    // Tài khoản thường không cho sửa để tránh lỗi hệ thống
+                 
                 }
             }
             db.SaveChanges();

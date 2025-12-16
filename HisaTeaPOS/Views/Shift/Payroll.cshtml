@@ -1,0 +1,83 @@
+﻿
+@model IEnumerable<HisaTeaPOS.Controllers.PayrollViewModel>
+@{
+    ViewBag.Title = "Bảng Lương";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    double dinhMuc = ViewBag.DinhMuc ?? 208;
+}
+
+<div class="space-y-6 animate-in fade-in duration-300">
+    <div class="bg-white rounded-xl shadow-sm border p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+        <h3 class="font-bold text-xl text-gray-800 flex items-center gap-2">
+            <i data-lucide="banknote" class="w-6 h-6 text-green-600"></i>
+            Lương Tháng @ViewBag.Month/@ViewBag.Year
+        </h3>
+        <div class="text-sm text-gray-500 italic">
+            *Định mức chuyên cần: <b>@dinhMuc giờ</b>/tháng
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-100 text-gray-600 font-bold uppercase text-xs border-b">
+                <tr>
+                    <th class="p-4">Nhân viên</th>
+                    <th class="p-4 text-center">Tổng Giờ</th>
+                    <th class="p-4 text-right">Lương Làm Việc</th>
+                    <th class="p-4 text-right">Chuyên Cần</th>
+                    <th class="p-4 text-right bg-orange-50 text-orange-700">Thực Lĩnh</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                @foreach (var item in Model)
+                {
+                    // Tính % hoàn thành chuyên cần để vẽ thanh tiến độ
+                    var percent = Math.Min((item.TongGioLam / dinhMuc) * 100, 100);
+                    var isBonus = item.ThuongChuyenCan > 0;
+
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-4">
+                            <div class="font-bold text-gray-800">@item.HoTen</div>
+                            <div class="text-xs text-gray-500">@string.Format("{0:N0}", item.LuongCoBan)/h</div>
+                        </td>
+
+                        <td class="p-4 text-center align-middle">
+                            <div class="font-bold text-gray-800">@Math.Round(item.TongGioLam, 1) giờ</div>
+                            <div class="w-24 h-1.5 bg-gray-200 rounded-full mx-auto mt-1 overflow-hidden">
+                                <div class="h-full @(isBonus ? "bg-green-500" : "bg-orange-400")" style="width: @percent%"></div>
+                            </div>
+                            @if (item.GioTangCa > 0)
+                            {
+                                <div class="text-[10px] text-blue-500 mt-0.5">(@Math.Round(item.GioTangCa, 1)h OT)</div>
+                            }
+                        </td>
+
+                        <td class="p-4 text-right font-medium">
+                            @string.Format("{0:N0}", item.TienLuongChinh)
+                        </td>
+
+                        <td class="p-4 text-right">
+                            @if (isBonus)
+                            {
+                                <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold border border-green-200">
+                                    +@string.Format("{0:N0}", item.ThuongChuyenCan)
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-gray-400 text-xs">Thiếu @Math.Round(dinhMuc - item.TongGioLam, 1)h</span>
+                            }
+                        </td>
+
+                        <td class="p-4 text-right font-black text-lg text-orange-600 bg-orange-50/30">
+                            @string.Format("{0:N0}đ", item.TongNhan)
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section scripts {
+    <script>lucide.createIcons();</script> }

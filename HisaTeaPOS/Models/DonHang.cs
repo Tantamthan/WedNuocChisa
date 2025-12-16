@@ -28,6 +28,7 @@ namespace HisaTeaPOS.Models
         public string TrangThai { get; set; }
         public Nullable<int> MaKM { get; set; }
         public Nullable<decimal> SoTienGiam { get; set; }
+        public string NguonDon { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<ChiTietDonHang> ChiTietDonHangs { get; set; }

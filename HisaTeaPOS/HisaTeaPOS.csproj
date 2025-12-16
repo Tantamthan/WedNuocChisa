@@ -295,6 +295,8 @@
     <Content Include="Views\Setting\Index.cshtml" />
     <Content Include="Views\Promotion\Index.cshtml" />
     <Content Include="Views\Inventory\Create.cshtml" />
+    <Content Include="Views\Shift\Payroll.cshtml" />
+    <Content Include="Views\Account\ChangePassword.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

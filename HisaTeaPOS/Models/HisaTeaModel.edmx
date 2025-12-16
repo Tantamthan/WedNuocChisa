@@ -89,6 +89,7 @@
           <Property Name="TrangThai" Type="nvarchar" MaxLength="50" />
           <Property Name="MaKM" Type="int" />
           <Property Name="SoTienGiam" Type="decimal" Precision="18" Scale="0" />
+          <Property Name="NguonDon" Type="nvarchar" MaxLength="50" />
         </EntityType>
         <EntityType Name="KhuyenMai">
           <Key>
@@ -146,6 +147,7 @@
           <Property Name="DanhMuc" Type="nvarchar" MaxLength="50" />
           <Property Name="GiaBan" Type="decimal" Precision="15" Scale="0" Nullable="false" />
           <Property Name="HinhAnh" Type="nvarchar(max)" />
+          <Property Name="NgungBan" Type="bit" Nullable="false" />
         </EntityType>
         <EntityType Name="sysdiagrams">
           <Key>
@@ -527,6 +529,7 @@
           <Property Name="MaKM" Type="Int32" />
           <Property Name="SoTienGiam" Type="Decimal" Precision="18" Scale="0" />
           <NavigationProperty Name="KhuyenMai" Relationship="HisaTeaDB_VNModel.FK__DonHang__MaKM__07C12930" FromRole="DonHang" ToRole="KhuyenMai" />
+          <Property Name="NguonDon" Type="String" MaxLength="50" FixedLength="false" Unicode="true" />
         </EntityType>
         <EntityType Name="LichLamViec">
           <Key>
@@ -580,6 +583,7 @@
           <Property Name="HinhAnh" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
           <NavigationProperty Name="ChiTietDonHangs" Relationship="Self.FK__ChiTietDon__MaSP__5535A963" FromRole="SanPham" ToRole="ChiTietDonHang" />
           <NavigationProperty Name="CongThucs" Relationship="Self.FK__CongThuc__MaSP__3D5E1FD2" FromRole="SanPham" ToRole="CongThuc" />
+          <Property Name="NgungBan" Type="Boolean" Nullable="false" />
         </EntityType>
         <EntityType Name="sysdiagram">
           <Key>
@@ -984,6 +988,7 @@
           <EntitySetMapping Name="DonHangs">
             <EntityTypeMapping TypeName="HisaTeaDB_VNModel.DonHang">
               <MappingFragment StoreEntitySet="DonHang">
+                <ScalarProperty Name="NguonDon" ColumnName="NguonDon" />
                 <ScalarProperty Name="SoTienGiam" ColumnName="SoTienGiam" />
                 <ScalarProperty Name="MaKM" ColumnName="MaKM" />
                 <ScalarProperty Name="TrangThai" ColumnName="TrangThai" />
@@ -1035,6 +1040,7 @@
           <EntitySetMapping Name="SanPhams">
             <EntityTypeMapping TypeName="HisaTeaDB_VNModel.SanPham">
               <MappingFragment StoreEntitySet="SanPham">
+                <ScalarProperty Name="NgungBan" ColumnName="NgungBan" />
                 <ScalarProperty Name="MaSP" ColumnName="MaSP" />
                 <ScalarProperty Name="Ten" ColumnName="Ten" />
                 <ScalarProperty Name="DanhMuc" ColumnName="DanhMuc" />

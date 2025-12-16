@@ -1,16 +1,17 @@
 ﻿using HisaTeaPOS.Filters;
 using HisaTeaPOS.Models;
-using System; // Required for DateTime and Exception
-using System.IO; // Required for Path
+using System;
+using System.IO;
 using System.Linq;
-using System.Web; // Required for HttpPostedFileBase
+using System.Web;
 using System.Web.Mvc;
+
 [AdminOnly]
 public class RecipeController : Controller
 {
     private HisaTeaDB_VNEntities db = new HisaTeaDB_VNEntities();
 
-    // Hiển thị danh sách sản phẩm để chọn cấu hình công thức
+    // Hiển thị danh sách sản phẩm
     public ActionResult Index()
     {
         var products = db.SanPhams.ToList();
@@ -18,7 +19,7 @@ public class RecipeController : Controller
         return View(products);
     }
 
-    // Load công thức của 1 sản phẩm (cho AJAX Modal)
+    // Load công thức (AJAX)
     public ActionResult GetRecipe(int productId)
     {
         var recipes = db.CongThucs.Where(c => c.MaSP == productId).Select(c => new {
@@ -31,7 +32,7 @@ public class RecipeController : Controller
         return Json(recipes, JsonRequestBehavior.AllowGet);
     }
 
-    // Thêm nguyên liệu vào công thức
+    // Thêm nguyên liệu
     [HttpPost]
     public ActionResult AddIngredient(int maSP, int maNL, decimal dinhLuong)
     {
@@ -41,13 +42,16 @@ public class RecipeController : Controller
         return Json(new { success = true });
     }
 
-    // Xóa nguyên liệu khỏi công thức
+    // Xóa nguyên liệu
     [HttpPost]
     public ActionResult RemoveIngredient(int maCongThuc)
     {
         var ct = db.CongThucs.Find(maCongThuc);
-        db.CongThucs.Remove(ct);
-        db.SaveChanges();
+        if (ct != null)
+        {
+            db.CongThucs.Remove(ct);
+            db.SaveChanges();
+        }
         return Json(new { success = true });
     }
 
@@ -56,47 +60,54 @@ public class RecipeController : Controller
     {
         try
         {
-            // 1. Xử lý lưu ảnh nếu có upload
+            // --- XỬ LÝ ẢNH ---
+            // Nếu người dùng có upload ảnh mới
             if (imageFile != null && imageFile.ContentLength > 0)
             {
-                // Tạo tên file độc nhất để tránh trùng
+                // 1. Tạo tên file độc nhất (tránh trùng lặp)
                 string fileName = Path.GetFileNameWithoutExtension(imageFile.FileName);
                 string extension = Path.GetExtension(imageFile.FileName);
                 fileName = fileName + "_" + DateTime.Now.ToString("yyyyMMddHHmmss") + extension;
 
-                // Đường dẫn lưu file (Tạo thư mục /Content/Images/Products trong dự án trước nhé)
+             
                 string folderPath = Server.MapPath("~/Pictures");
 
-                // Tự động tạo thư mục "Pictures" nếu chưa có
+                // Nếu thư mục chưa có thì tạo mới
                 if (!Directory.Exists(folderPath))
                 {
                     Directory.CreateDirectory(folderPath);
                 }
 
+                // 3. Lưu file vào server
                 string path = Path.Combine(folderPath, fileName);
                 imageFile.SaveAs(path);
 
-                // Lưu đường dẫn vào DB (Bắt đầu bằng /Pictures/...)
+                // 4. Cập nhật đường dẫn vào Model để lưu xuống DB
                 model.HinhAnh = "/Pictures/" + fileName;
             }
 
+            // --- LƯU DATABASE ---
             if (model.MaSP == 0)
             {
-                // --- THÊM MỚI ---
-                if (string.IsNullOrEmpty(model.HinhAnh)) model.HinhAnh = "https://via.placeholder.com/150"; // Ảnh mặc định
+                // THÊM MỚI
+                if (string.IsNullOrEmpty(model.HinhAnh))
+                    model.HinhAnh = "https://via.placeholder.com/150"; // Ảnh mặc định
+
+                model.NgungBan = false; // Mặc định là đang bán
                 db.SanPhams.Add(model);
             }
             else
             {
-                // --- CẬP NHẬT ---
+                // CẬP NHẬT
                 var sp = db.SanPhams.Find(model.MaSP);
                 if (sp != null)
                 {
                     sp.Ten = model.Ten;
                     sp.GiaBan = model.GiaBan;
                     sp.DanhMuc = model.DanhMuc;
+                    sp.NgungBan = model.NgungBan; // Cập nhật trạng thái Ngừng Bán
 
-                    // Chỉ cập nhật ảnh nếu người dùng có upload ảnh mới
+                    // Chỉ cập nhật ảnh nếu có upload ảnh mới
                     if (!string.IsNullOrEmpty(model.HinhAnh))
                     {
                         sp.HinhAnh = model.HinhAnh;
@@ -109,18 +120,35 @@ public class RecipeController : Controller
         }
         catch (Exception ex)
         {
-            // Ghi log lỗi nếu cần
+           
             return RedirectToAction("Index");
         }
     }
 
-    // Hàm xóa sản phẩm (Nếu cần)
+
+    [HttpPost]
+  
+    public ActionResult ToggleStatus(int id)
+    {
+        var sp = db.SanPhams.Find(id);
+        if (sp != null)
+        {
+            sp.NgungBan = !sp.NgungBan;
+
+            db.SaveChanges();
+            return Json(new { success = true, newStatus = sp.NgungBan });
+        }
+        return Json(new { success = false, message = "Không tìm thấy sản phẩm" });
+    }
+
+    // Xóa sản phẩm (Xóa mềm)
     public ActionResult DeleteProduct(int id)
     {
         var sp = db.SanPhams.Find(id);
         if (sp != null)
         {
-            db.SanPhams.Remove(sp);
+            // Đánh dấu ngừng bán thay vì xóa vĩnh viễn
+            sp.NgungBan = true;
             db.SaveChanges();
         }
         return RedirectToAction("Index");

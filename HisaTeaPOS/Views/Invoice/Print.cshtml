@@ -1,51 +1,139 @@
 ﻿@model HisaTeaPOS.Models.DonHang
-@{ Layout = null; }
+@{
+    Layout = null;
+}
 <!DOCTYPE html>
 <html>
 <head>
     <title>In Hóa Đơn #@Model.MaDon</title>
     <style>
-         body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; padding: 10px; }
-         .text-center { text-align: center; }
-         .text-right { text-align: right; }
-         .bold { font-weight: bold; }
-         .border-b { border-bottom: 1px dashed #000; margin: 5px 0; }
-        @@media print { .no-print { display: none; } }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .border-b {
+            border-bottom: 1px dashed #000;
+            margin: 5px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            vertical-align: top;
+            padding: 2px 0;
+        }
+
+        @@media print {
+            .no-print {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body onload="window.print()">
+
     <div class="text-center">
-        <h2 class="bold">@ViewBag.TenQuan</h2>
-        <p>@ViewBag.DiaChi</p>
-        <p>Wifi: @ViewBag.WifiPass</p>
+        <h2 class="bold" style="margin: 5px 0;">@ViewBag.TenQuan</h2>
+        <p style="margin: 2px 0;">@ViewBag.DiaChi</p>
+        <p style="margin: 2px 0;">Wifi: @ViewBag.WifiPass</p>
+        <div class="border-b"></div>
+        <p class="bold">PHIẾU THANH TOÁN</p>
+        <p>Số phiếu: #@Model.MaDon</p>
+        <p>@string.Format("{0:dd/MM/yyyy HH:mm}", DateTime.Now)</p>
     </div>
 
     <div class="border-b"></div>
-    <div class="text-center" style="margin-top: 20px;">
-        <p class="italic">@ViewBag.LoiChao</p>
-    </div>
 
-    <button class="no-print" onclick="window.close()" ...>Đóng</button>    
-    <table style="width: 100%; font-size: 12px;">
-        @foreach(var item in Model.ChiTietDonHangs) {
-            <tr>
-                <td colspan="2" class="bold">@item.SanPham.Ten (@item.KichCo)</td>
+    <table>
+        <thead>
+            <tr style="border-bottom: 1px solid #000;">
+                <th style="text-align:left">Món</th>
+                <th style="text-align:right">T.Tiền</th>
             </tr>
-            <tr>
-                <td>SL: @item.SoLuong | @item.MucDuong% đường</td>
-                <td class="text-right">@string.Format("{0:N0}", item.ThanhTien)</td>
-            </tr>
-        }
+        </thead>
+        <tbody>
+            @foreach (var item in Model.ChiTietDonHangs)
+            {
+                <tr>
+                    <td colspan="2" class="bold" style="padding-top: 5px;">
+                        @item.SanPham.Ten (@item.KichCo)
+                    </td>
+                </tr>
+
+                @* --- VÒNG LẶP HIỂN THỊ DANH SÁCH TOPPING --- *@
+                if (item.ChiTietToppings != null && item.ChiTietToppings.Count > 0)
+                {
+                    foreach (var top in item.ChiTietToppings)
+                    {
+                        /* Kiểm tra xem object Topping có null không */
+                        if (top.Topping != null)
+                        {
+                            <tr>
+                                <td colspan="2" class="italic" style="font-size: 11px; padding-left: 10px; color: #444;">
+                                    @* Sửa .Ten thành .TenTop hoặc .TenTopping tùy DB của bạn *@
+                                    + @top.Topping.Ten
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+                @* ------------------------------------------- *@
+
+                <tr>
+                    <td>
+                        <span class="bold" style="font-size: 13px;">x @item.SoLuong</span>
+                        | @item.MucDuong% đường
+                    </td>
+                    <td class="text-right">
+                        @string.Format("{0:N0}", item.ThanhTien)
+                    </td>
+                </tr>
+
+                <tr><td colspan="2" style="border-bottom: 1px dotted #ccc;"></td></tr>
+            }
+        </tbody>
     </table>
-    
+
     <div class="border-b"></div>
-    <div class="text-right bold" style="font-size: 16px; margin-top: 10px;">
-        TỔNG: @string.Format("{0:N0}", Model.TongTien)đ
+
+    <table style="margin-top: 5px;">
+        <tr>
+            <td class="bold">Tổng cộng:</td>
+            <td class="text-right bold" style="font-size: 16px;">
+                @string.Format("{0:N0}", Model.TongTien)đ
+            </td>
+        </tr>
+    </table>
+
+    <div class="text-center" style="margin-top: 15px;">
+        <p class="italic">@ViewBag.LoiChao</p>
+        <p style="font-size: 10px;">Cảm ơn & Hẹn gặp lại!</p>
     </div>
-    <div class="text-center" style="margin-top: 20px;">
-        <p>Cảm ơn & Hẹn gặp lại!</p>
-    </div>
-    
+
     <button class="no-print" onclick="window.close()" style="margin-top:20px; width:100%; padding: 10px;">Đóng</button>
+
 </body>
 </html>

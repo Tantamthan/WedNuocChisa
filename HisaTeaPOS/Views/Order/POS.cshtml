@@ -7,7 +7,7 @@
 <div class="flex flex-col lg:flex-row gap-4 h-full relative">
     <div class="flex-1 flex flex-col min-h-0 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
         <div class="p-3 border-b space-y-2 bg-white z-10 flex-shrink-0">
-            <input type="text" id="searchBox" placeholder="Tìm nhanh món..." class="w-full px-4 py-2 bg-gray-50 border-transparent rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+            <input type="text" id="searchInput" placeholder="Tìm nhanh món..." class="w-full px-4 py-2 bg-gray-50 border-transparent rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 bg-gray-50/30">
@@ -25,9 +25,10 @@
                         }
                     }
 
-                    <button onclick="@(isOutOfStock ? "" : $"selectProduct({item.MaSP}, '{HttpUtility.JavaScriptStringEncode(item.Ten)}', {item.GiaBan}, '{item.HinhAnh}')")"
-                            class="group relative flex flex-col rounded-xl overflow-hidden shadow-sm border border-gray-100 transition-all @(isOutOfStock ? "bg-gray-100 cursor-not-allowed opacity-60" : "bg-white hover:shadow-md")">
 
+                    <button onclick="@(isOutOfStock ? "" : $"selectProduct({item.MaSP}, '{HttpUtility.JavaScriptStringEncode(item.Ten)}', {item.GiaBan}, '{item.HinhAnh}')")"
+                            data-name="@item.Ten"
+                            class="product-item group relative flex flex-col rounded-xl overflow-hidden shadow-sm border border-gray-100 transition-all @(isOutOfStock ? "bg-gray-100 cursor-not-allowed opacity-60" : "bg-white hover:shadow-md")">
                         <div class="h-32 w-full bg-white relative">
                             <img src="@(item.HinhAnh ?? "https://via.placeholder.com/150")" class="w-full h-full object-contain p-1 @(isOutOfStock ? "grayscale" : "")" />
 
@@ -51,12 +52,19 @@
     </div>
 
 
+
     <div class="lg:w-96 w-full bg-white rounded-xl shadow-md border border-gray-100 flex flex-col h-full overflow-hidden">
         <div class="p-4 border-b bg-gray-50 flex justify-between items-center h-16">
             <h3 class="font-bold text-gray-800 text-lg">Giỏ hàng</h3>
             <button onclick="clearCart()" class="text-xs text-red-500 hover:underline font-medium">Xóa tất cả</button>
         </div>
 
+        <select id="order-source" onchange="changeOrderSource()" class="w-full p-2 border rounded-lg text-sm font-bold bg-white text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="store" data-rate="1">🏪 Tại quán / Mang về (Giá gốc)</option>
+            <option value="shopee" data-rate="1.2">🚀 ShopeeFood (+20%)</option>
+            <option value="grab" data-rate="1.25">💚 GrabFood (+25%)</option>
+            <option value="be" data-rate="1.2">🟡 BeFood (+20%)</option>
+        </select>
         <div id="cartItems" class="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
         </div>
 
@@ -204,187 +212,215 @@
 </div>
 
 <script>
-    // --- 1. KHỞI TẠO DỮ LIỆU ---
-    // [MỚI] Thử lấy giỏ hàng từ bộ nhớ trình duyệt ra trước
+    // --- 1. INITIALIZE DATA ---
     const savedCart = localStorage.getItem('hisa_cart');
     let cart = savedCart ? JSON.parse(savedCart) : [];
 
     let currentPaymentMethod = 'cash';
+    let currentPriceRate = 1.0; // Default price rate
     const sizeConfig = { 'S': 0.8, 'M': 1.0, 'L': 1.3 };
 
-    // Biến tạm Modal
-    let tempItem = { id: 0, name: '', basePrice: 0, img: '', size: 'M', sugar: 100, qty: 1, toppings: [], toppingNames: [] };
+    // Coupon variables
+    let currentDiscount = 0;
+    let currentKmId = null;
+
+    // Temporary Modal Data
+    let tempItem = {
+        id: 0, name: '', basePrice: 0, img: '',
+        size: 'M', sugar: 100, qty: 1,
+        selectedToppings: {} // Use object for topping counts: { toppingId: qty }
+    };
     let currentToppingPrice = 0;
 
-    // --- KHI TRANG VỪA TẢI XONG -> VẼ LẠI GIỎ HÀNG CŨ ---
+    // --- ON PAGE LOAD ---
     document.addEventListener("DOMContentLoaded", function () {
-        if (cart.length > 0) {
-            renderCart(); // Vẽ lại nếu có hàng cũ
-        }
+        if (cart.length > 0) renderCart();
     });
 
-    // --- 2. XỬ LÝ CHỌN PHƯƠNG THỨC THANH TOÁN ---
-    function setPaymentMethod(method) {
-        currentPaymentMethod = method;
-        const btnCash = document.getElementById('btn-cash');
-        const btnTransfer = document.getElementById('btn-transfer');
-
-        const defaultClass = "py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-700 border border-transparent";
-        const activeClassCash = "py-2 rounded-lg text-xs font-bold transition-all bg-white text-green-700 shadow-sm border border-transparent";
-        const activeClassTransfer = "py-2 rounded-lg text-xs font-bold transition-all bg-white text-blue-700 shadow-sm border border-transparent";
-
-        btnCash.className = defaultClass;
-        btnTransfer.className = defaultClass;
-
-        if (method === 'cash') {
-            btnCash.className = activeClassCash;
-        } else {
-            btnTransfer.className = activeClassTransfer;
-        }
+    // --- 2. HANDLE ORDER SOURCE (APP MARKUP) ---
+    function changeOrderSource() {
+        const select = document.getElementById('order-source');
+        currentPriceRate = parseFloat(select.options[select.selectedIndex].getAttribute('data-rate'));
+        renderCart(); // Re-calculate prices
     }
 
-    // --- 3. CÁC HÀM XỬ LÝ MODAL ---
+    // --- 3. COUPON LOGIC ---
+    function applyCoupon() {
+        const code = $('#coupon-code').val();
+        if (!code) return;
+
+        // Calculate raw total based on current cart and price rate
+        const currentTotal = cart.reduce((sum, item) => sum + ((item.price * currentPriceRate) * item.qty), 0);
+
+        $.post('/Order/CheckCoupon', { code: code, total: currentTotal }, function (res) {
+            if (res.success) {
+                currentDiscount = res.discount;
+                currentKmId = res.kmId;
+
+                $('#discount-row').removeClass('hidden');
+                $('#discount-amount').text('-' + currentDiscount.toLocaleString() + 'đ');
+
+                // Refresh cart UI to update total
+                renderCart();
+                alert('Áp dụng mã thành công!');
+            } else {
+                alert(res.message);
+                resetCoupon();
+                renderCart();
+            }
+        });
+    }
+
+    function resetCoupon() {
+        currentDiscount = 0;
+        currentKmId = null;
+        $('#discount-row').addClass('hidden');
+        $('#coupon-code').val('');
+    }
+
+    // --- 4. MODAL & TOPPING LOGIC ---
     function selectProduct(id, name, price, img) {
-        tempItem = { id, name, basePrice: price, img, size: 'M', sugar: 100, qty: 1, toppings: [], toppingNames: [] };
-        currentToppingPrice = 0;
+        // Reset temp item
+        tempItem = {
+            id: id, name: name, basePrice: price, img: img,
+            size: 'M', sugar: 100, qty: 1,
+            selectedToppings: {}
+        };
 
         $('#modal-title').text(name);
         $('#modal-base-price').text(price.toLocaleString() + 'đ');
         $('#modal-img').attr('src', img || 'https://via.placeholder.com/400');
 
+        // Reset UI buttons
         $('.size-btn').removeClass('bg-white text-orange-600 shadow-sm').addClass('text-gray-500');
         $('#size-M').addClass('bg-white text-orange-600 shadow-sm').removeClass('text-gray-500');
-
         $('.sugar-btn').removeClass('border-orange-500 bg-orange-50 text-orange-700');
         $('#sugar-100').addClass('border-orange-500 bg-orange-50 text-orange-700');
 
-        $('.topping-btn').removeClass('active border-orange-500 bg-orange-50 ring-1 ring-orange-500');
+        // Reset topping counters
+        $('.topping-qty-display').text('0');
 
         updateModalTotal();
         $('#modal-qty').text(1);
         $('#productModal').removeClass('hidden');
     }
 
-    function setSize(s) {
-        tempItem.size = s;
-        $('.size-btn').removeClass('bg-white text-orange-600 shadow-sm').addClass('text-gray-500');
-        $('#size-' + s).addClass('bg-white text-orange-600 shadow-sm').removeClass('text-gray-500');
-        updateModalTotal();
-    }
+    function changeToppingQty(id, name, price, delta) {
+        let currentQty = tempItem.selectedToppings[id] || 0;
+        let newQty = currentQty + delta;
+        if (newQty < 0) return;
 
-    function setSugar(l) {
-        tempItem.sugar = l;
-        $('#sugar-display').text(l + '%');
-        $('.sugar-btn').removeClass('border-orange-500 bg-orange-50 text-orange-700');
-        $('#sugar-' + l).addClass('border-orange-500 bg-orange-50 text-orange-700');
-    }
-
-    function toggleTopping(id, name, price) {
-        const btn = $('#top-' + id);
-        const index = tempItem.toppings.indexOf(id);
-
-        if (index === -1) {
-            tempItem.toppings.push(id);
-            tempItem.toppingNames.push(name);
-            currentToppingPrice += price;
-            btn.addClass('active border-orange-500 bg-orange-50 ring-1 ring-orange-500');
+        if (newQty === 0) {
+            delete tempItem.selectedToppings[id];
         } else {
-            tempItem.toppings.splice(index, 1);
-            tempItem.toppingNames.splice(tempItem.toppingNames.indexOf(name), 1);
-            currentToppingPrice -= price;
-            btn.removeClass('active border-orange-500 bg-orange-50 ring-1 ring-orange-500');
+            tempItem.selectedToppings[id] = newQty;
+            // Save extra info needed for cart
+            tempItem.selectedToppings[id + '_info'] = { name: name, price: price };
         }
-        updateModalTotal();
-    }
 
-    function adjustQty(delta) {
-        const newQty = tempItem.qty + delta;
-        if (newQty >= 1) {
-            tempItem.qty = newQty;
-            $('#modal-qty').text(newQty);
-            updateModalTotal();
-        }
+        // Update UI
+        $('#top-qty-' + id).text(newQty);
+        updateModalTotal();
     }
 
     function updateModalTotal() {
-        const unitPrice = (tempItem.basePrice * sizeConfig[tempItem.size]) + currentToppingPrice;
+        // Calculate total topping price
+        let totalToppingPrice = 0;
+        for (const key in tempItem.selectedToppings) {
+            if (!key.endsWith('_info')) {
+                const qty = tempItem.selectedToppings[key];
+                const info = tempItem.selectedToppings[key + '_info'];
+                if (info) totalToppingPrice += (qty * info.price);
+            }
+        }
+
+        const unitPrice = (tempItem.basePrice * sizeConfig[tempItem.size]) + totalToppingPrice;
         const total = unitPrice * tempItem.qty;
         $('#modal-total').text(total.toLocaleString() + 'đ');
     }
 
-    function closeModal() {
-        $('#productModal').addClass('hidden');
-    }
-
     function confirmAddToCart() {
-        const finalUnitPrice = (tempItem.basePrice * sizeConfig[tempItem.size]) + currentToppingPrice;
+        // Convert toppings object to array for backend
+        let toppingsArr = [];
+        let toppingNamesArr = [];
+        let totalToppingPrice = 0;
+
+        for (const key in tempItem.selectedToppings) {
+            if (!key.endsWith('_info')) {
+                const id = parseInt(key);
+                const qty = tempItem.selectedToppings[key];
+                const info = tempItem.selectedToppings[key + '_info'];
+
+                for (let i = 0; i < qty; i++) {
+                    toppingsArr.push(id);
+                    toppingNamesArr.push(info.name);
+                }
+                totalToppingPrice += (qty * info.price);
+            }
+        }
+
+        // Store BASE PRICE in cart. App Markup is applied at Render/Checkout time.
+        const unitBasePrice = (tempItem.basePrice * sizeConfig[tempItem.size]) + totalToppingPrice;
+
         cart.push({
             cartId: Date.now(),
             id: tempItem.id,
             name: tempItem.name,
-            price: finalUnitPrice,
+            price: unitBasePrice, // Base price (before markup)
             qty: tempItem.qty,
             size: tempItem.size,
             sugar: tempItem.sugar,
-            tops: [...tempItem.toppings],
-            topNames: [...tempItem.toppingNames]
+            tops: toppingsArr,
+            topNames: toppingNamesArr
         });
+
         renderCart();
         closeModal();
     }
-    function changeToppingQty(id, name, price, delta) {
-        const qtySpan = $('#top-qty-' + id);
-        let currentQty = parseInt(qtySpan.text()) || 0;
 
-        // Tính số lượng mới
-        let newQty = currentQty + delta;
-        if (newQty < 0) return; // Không được âm
+    // Helper functions
+    function setSize(s) { tempItem.size = s; updateModalStyles('size', s); updateModalTotal(); }
+    function setSugar(l) { tempItem.sugar = l; updateModalStyles('sugar', l); }
+    function adjustQty(d) { let n = tempItem.qty + d; if (n >= 1) { tempItem.qty = n; $('#modal-qty').text(n); updateModalTotal(); } }
+    function closeModal() { $('#productModal').addClass('hidden'); }
 
-        // Cập nhật giao diện số lượng
-        qtySpan.text(newQty);
-
-        if (delta > 0) {
-            // Nếu là cộng: Thêm ID vào mảng toppings, Thêm Tên vào mảng toppingNames
-            tempItem.toppings.push(id);
-            tempItem.toppingNames.push(name);
-            currentToppingPrice += price;
+    function updateModalStyles(type, val) {
+        if (type === 'size') {
+            $('.size-btn').removeClass('bg-white text-orange-600 shadow-sm').addClass('text-gray-500');
+            $('#size-' + val).addClass('bg-white text-orange-600 shadow-sm').removeClass('text-gray-500');
         } else {
-            // Nếu là trừ: Tìm vị trí và xóa 1 phần tử
-            const idx = tempItem.toppings.indexOf(id);
-            if (idx > -1) {
-                tempItem.toppings.splice(idx, 1);
-                // Xóa tên tương ứng (tìm tên trong mảng tên)
-                const nameIdx = tempItem.toppingNames.indexOf(name);
-                if (nameIdx > -1) tempItem.toppingNames.splice(nameIdx, 1);
-
-                currentToppingPrice -= price;
-            }
+            $('.sugar-btn').removeClass('border-orange-500 bg-orange-50 text-orange-700');
+            $('#sugar-' + val).addClass('border-orange-500 bg-orange-50 text-orange-700');
         }
-
-        updateModalTotal();
     }
 
-    // --- 4. RENDER GIỎ HÀNG (CÓ LƯU LOCALSTORAGE) ---
+    // --- 5. RENDER CART ---
     function renderCart() {
-        // [MỚI] Lưu giỏ hàng vào bộ nhớ trình duyệt mỗi khi render
         localStorage.setItem('hisa_cart', JSON.stringify(cart));
-
         const container = document.getElementById('cartItems');
         const totalEl = document.getElementById('totalAmount');
         const subTotalEl = document.getElementById('subTotal');
 
         if (!container) return;
-
         container.innerHTML = '';
         let total = 0;
 
         cart.forEach((item, index) => {
-            const itemTotal = item.price * item.qty;
+            // Apply Markup (Price Rate)
+            const displayPrice = item.price * currentPriceRate;
+            const itemTotal = displayPrice * item.qty;
             total += itemTotal;
 
+            // Group Toppings for Display
             let toppingHtml = '';
             if (item.topNames && item.topNames.length > 0) {
-                toppingHtml = `<div class="text-xs text-gray-500 mt-1">+ ${item.topNames.join(', ')}</div>`;
+                const counts = {};
+                item.topNames.forEach(name => { counts[name] = (counts[name] || 0) + 1; });
+                const displayParts = Object.keys(counts).map(name => {
+                    const count = counts[name];
+                    return count > 1 ? `${name} <b class="text-orange-600">x${count}</b>` : name;
+                });
+                toppingHtml = `<div class="text-xs text-gray-500 mt-1 border-t border-dashed pt-1">+ ${displayParts.join(', ')}</div>`;
             }
 
             const html = `
@@ -394,10 +430,11 @@
                             <div class="font-bold text-gray-800 text-sm truncate pr-2">${item.name}</div>
                             <div class="text-orange-600 font-bold text-sm">${itemTotal.toLocaleString()}đ</div>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-1">
+                        <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-1 mb-1">
+                             ${currentPriceRate > 1 ? `<span class="bg-blue-100 text-blue-700 px-1.5 rounded font-bold text-[10px]">APP</span>` : ''}
                             <span class="bg-gray-100 px-1.5 rounded text-gray-600 font-medium">${item.size}</span>
                             <span class="bg-gray-100 px-1.5 rounded text-gray-600">${item.sugar}% Đường</span>
-                            <span class="text-gray-400 font-bold ml-1">x${item.qty}</span>
+                            <span class="text-gray-800 font-bold ml-1 bg-orange-100 px-1.5 rounded text-orange-700">SL: ${item.qty}</span>
                         </div>
                         ${toppingHtml}
                     </div>
@@ -409,36 +446,68 @@
             container.innerHTML += html;
         });
 
-        const formattedTotal = total.toLocaleString() + 'đ';
-        if (totalEl) totalEl.innerText = formattedTotal;
-        if (subTotalEl) subTotalEl.innerText = formattedTotal;
+        // Final Total after Discount
+        const finalTotal = Math.max(0, total - currentDiscount);
+
+        if (subTotalEl) subTotalEl.innerText = total.toLocaleString() + 'đ';
+        if (totalEl) totalEl.innerText = finalTotal.toLocaleString() + 'đ';
 
         if (window.lucide) lucide.createIcons();
     }
 
     function removeFromCart(index) {
         cart.splice(index, 1);
+        resetCoupon();
         renderCart();
     }
-
     function clearCart() {
         cart = [];
+        resetCoupon();
         renderCart();
     }
 
-    // --- 5. THANH TOÁN ---
+    // --- 6. CHECKOUT (CORRECTED) ---
+    function setPaymentMethod(method) {
+        currentPaymentMethod = method;
+        const btnCash = document.getElementById('btn-cash');
+        const btnTransfer = document.getElementById('btn-transfer');
+        // ... (Reset Classes Logic is same as before, omitted for brevity but you should keep it) ...
+        const defaultClass = "py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-700 border border-transparent";
+        const activeClassCash = "py-2 rounded-lg text-xs font-bold transition-all bg-white text-green-700 shadow-sm border border-transparent";
+        const activeClassTransfer = "py-2 rounded-lg text-xs font-bold transition-all bg-white text-blue-700 shadow-sm border border-transparent";
+
+        if (btnCash) btnCash.className = defaultClass;
+        if (btnTransfer) btnTransfer.className = defaultClass;
+
+        if (method === 'cash' && btnCash) btnCash.className = activeClassCash;
+        else if (btnTransfer) btnTransfer.className = activeClassTransfer;
+    }
+
     function checkout() {
         if (cart.length === 0) return alert("Giỏ hàng trống!");
 
+        // 1. Calc Raw Total with Markup
+        const rawTotal = cart.reduce((sum, item) => sum + ((item.price * currentPriceRate) * item.qty), 0);
+        // 2. Calc Final Total
+        const finalTotal = Math.max(0, rawTotal - currentDiscount);
+
+        // Get Order Source Text
+        const select = document.getElementById('order-source');
+        const sourceName = select.options[select.selectedIndex].text;
+
         const orderData = {
-            Total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+            Total: finalTotal,
             PaymentMethod: currentPaymentMethod,
+            CouponId: currentKmId,
+            DiscountAmount: currentDiscount,
+            OrderSource: sourceName,
+
             Items: cart.map(c => ({
                 ProductId: c.id,
                 Quantity: c.qty,
                 Size: c.size,
                 Sugar: c.sugar,
-                Price: c.price,
+                Price: c.price * currentPriceRate, // Send markup price to server
                 Toppings: c.tops
             }))
         };
@@ -457,10 +526,8 @@
             .then(data => {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-
                 if (data.success) {
                     alert('✅ Thanh toán thành công! Mã đơn: ' + data.orderId);
-                    // [MỚI] Thanh toán xong thì xóa luôn trong bộ nhớ
                     localStorage.removeItem('hisa_cart');
                     clearCart();
                     setPaymentMethod('cash');
@@ -475,41 +542,48 @@
                 console.error(err);
             });
     }
-    let currentDiscount = 0;
-    let currentKmId = null;
+   src="https://code.jquery.com/jquery-3.6.0.min.js">
 
-    function applyCoupon() {
-        const code = $('#coupon-code').val();
-        if (!code) return;
 
-        // Tính tổng tiền hiện tại (chưa giảm)
-        const currentTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    $(document).ready(function () {
+        // Hàm xóa dấu Tiếng Việt (để gõ "sua" vẫn tìm ra "Sữa")
+        function removeVietnameseTones(str) {
+            str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+            str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+            str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+            str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+            str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+            str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+            str = str.replace(/đ/g, "d");
+            str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+            str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+            str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+            str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+            str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+            str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+            str = str.replace(/Đ/g, "D");
+            // Một số ký tự đặc biệt
+            str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
+            str = str.replace(/\u02C6|\u0306|\u031B/g, "");
+            return str.trim().toLowerCase();
+        }
 
-        $.post('/Order/CheckCoupon', { code: code, total: currentTotal }, function (res) {
-            if (res.success) {
-                currentDiscount = res.discount;
-                currentKmId = res.kmId;
+    // Bắt sự kiện khi gõ phím vào ô tìm kiếm
+    $("#searchInput").on("keyup", function () {
+        var value = $(this).val();
+    var unsignedValue = removeVietnameseTones(value); // Từ khóa không dấu
 
-                // Hiển thị số tiền giảm
-                $('#discount-row').removeClass('hidden');
-                $('#discount-amount').text('-' + currentDiscount.toLocaleString() + 'đ');
+    $(".product-item").filter(function () {
+            // Lấy tên món từ data-name hoặc text bên trong
+            var productName = $(this).data("name") || $(this).text();
 
-                // Cập nhật lại tổng tiền hiển thị
-                const finalTotal = currentTotal - currentDiscount;
-                $('#totalAmount').text(finalTotal.toLocaleString() + 'đ');
+    // Chuyển tên món về dạng không dấu
+    var unsignedName = removeVietnameseTones(productName);
 
-                alert('Áp dụng mã thành công!');
-            } else {
-                alert(res.message);
-                // Reset nếu mã sai
-                currentDiscount = 0;
-                currentKmId = null;
-                $('#discount-row').addClass('hidden');
-                renderCart(); // Vẽ lại để reset tổng tiền
-            }
+            // So sánh: Nếu có chứa từ khóa thì hiện, không thì ẩn
+            $(this).toggle(unsignedName.indexOf(unsignedValue) > -1)
         });
-    }
-
-    // LƯU Ý: Bạn cần sửa lại hàm checkout() để gửi kèm currentKmId và tiền đã giảm về server nhé!
+    });
+});
 </script>
 }
